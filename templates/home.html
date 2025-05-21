@@ -7,9 +7,8 @@
         {% for chat_message in chat_messages %}
         <p>{{ chat_message }}</p>
         {% endfor %}
-        <form method="post" enctype="multipart/form-data">
+        <form method="post">
             <input type="hidden" name="prev_message" value="{{ chat_messages|tojson }}">
-            <input type="file" name="files" multiple>
             <label>
                 <textarea name="message" placeholder="Typ bericht"></textarea>
             </label>
