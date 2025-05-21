@@ -3,7 +3,7 @@ from openai import OpenAI
 import json, os
 
 client = OpenAI(
-    base_url="https://api.bonzai.iodigital.com/universal",
+    base_url=os.getenv('AIO_BASE_URL'),
     api_key="XXX",
     default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
 )
