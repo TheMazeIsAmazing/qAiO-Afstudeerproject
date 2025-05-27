@@ -1,11 +1,10 @@
 from flask import Flask, render_template, request
-from openai import OpenAI
-import json, os
+from openai import OpenAI, OpenAIError
+import json, os, tempfile
 
+# Initialize OpenAI client
 client = OpenAI(
-    base_url=os.getenv('AIO_BASE_URL'),
-    api_key="XXX",
-    default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
+    api_key=os.getenv('OPENAI_API_KEY'),
 )
 
 # Create a Flask application instance
@@ -29,53 +28,80 @@ app.jinja_env.filters['tojson'] = json.dumps
 def home():
     if request.method == 'POST':
         # Get form data
-        prev_message_str = request.form.get('prev_message', '[]')
         message = request.form.get('message')
 
-        # Parse previous messages from JSON
         try:
-            prev_message = json.loads(prev_message_str)
-        except:
-            prev_message = []
+            # Upload files first
+            file_ids = []
+            file_names = []
 
-        # Ensure prev_message is a list
-        if not isinstance(prev_message, list):
-            prev_message = []
+            for file in request.files.getlist('files'):
+                if file.filename != '':
+                    # Create a temporary directory that works on any OS
+                    temp_dir = tempfile.gettempdir()
+                    temp_path = os.path.join(temp_dir, file.filename)
 
-        # Prepare conversation history for the AI
-        conversation = []
-        for i, msg in enumerate(prev_message):
-            # Alternate between user and assistant roles
-            role = "user" if i % 2 == 0 else "assistant"
-            conversation.append({"role": role, "content": msg})
+                    # Save file temporarily
+                    file.save(temp_path)
 
-        # Add the new user message
-        conversation.append({"role": "user", "content": message})
+                    # Debug information
+                    print(f"Uploading file: {file.filename}")
 
-        print(f"conversation: {conversation}")
+                    # Upload using the exact same method as the documentation
+                    with open(temp_path, "rb") as f:
+                        uploaded_file = client.files.create(
+                            file=f,
+                            purpose="user_data"
+                        )
 
-        # Call the API with the full conversation history
-        completion = client.chat.completions.create(
-            model="claude-3-7-sonnet",
-            messages=conversation,
-            # temperature=0.0 # ToDo: Test different temperatures with QA'ers
-        )
+                    # Clean up temp file
+                    os.remove(temp_path)
 
-        chat_message = completion.choices[0].message.content
+                    file_ids.append(uploaded_file.id)
+                    file_names.append(file.filename)
 
-        # Update message history
-        prev_message.append(message)
-        prev_message.append(chat_message)
+            # Build content for the API request exactly as in the documentation
+            user_content = []
 
-        # print(f"User message: {message}")
-        # print(f"AI response: {chat_message}")
-        # print(f"Message history: {prev_message}")
-        print(f"conversation: {conversation}")
+            # Add file references
+            for file_id in file_ids:
+                user_content.append({
+                    "type": "input_file",
+                    "file_id": file_id,
+                })
 
+            # Add the text message
+            user_content.append({
+                "type": "input_text",
+                "text": message,
+            })
 
-        return render_template('home.html', chat_messages=prev_message)
+            # Create a new response exactly as in the documentation
+            response = client.responses.create(
+                model="gpt-4.1",
+                instructions="You are a general purpose assistant designed to assist scouts leaders from the scouts club called: Scouting Johan en Cornelis de Witt-MeDo. Keep your answers short, but accurate. In the event you are not sure about your answer, please state this clearly and ask follow up questions. Also please answer in Dutch",
+                input=[
+                    {
+                        "role": "user",
+                        "content": user_content
+                    }
+                ],
+                store=False
+            )
+
+            return render_template('home.html',
+                                   chat_history=[f"Bestand(en): {file_names}", message, response.output_text])
+        except OpenAIError as e:
+            print(f"OpenAI Error: {str(e)}")
+            return render_template('oi.html', error=str(e))
     else:
-        return render_template('home.html', chat_messages=[])
+        # For GET requests, start with an empty conversation
+        return render_template('home.html', chat_history=[])
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('oi.html', error="404 - Niet gevonden", hide_btn=True), 404
 
 
 if __name__ == "__main__":
