@@ -28,7 +28,25 @@ app.jinja_env.filters['tojson'] = json.dumps
 def home():
     if request.method == 'POST':
         # Get form data
+        chat_history_str = request.form.get('chat_history', '[]')
         message = request.form.get('message')
+
+        # Parse previous messages from JSON
+        try:
+            chat_history = json.loads(chat_history_str)
+        except:
+            chat_history = []
+
+        # Ensure prev_message is a list
+        if not isinstance(chat_history, list):
+            chat_history = []
+
+        # Prepare conversation history for the AI
+        conversation = []
+        for i, msg in enumerate(chat_history):
+            # Alternate between user and assistant roles
+            role = "user" if i % 2 == 0 else "assistant"
+            conversation.append({"role": role, "content": msg})
 
         try:
             # Upload files first
@@ -76,21 +94,22 @@ def home():
                 "text": message,
             })
 
+            # Add the new user message
+            conversation.append({"role": "user", "content": user_content})
+
             # Create a new response exactly as in the documentation
             response = client.responses.create(
                 model="gpt-4.1",
                 instructions="You are a general purpose assistant designed to assist scouts leaders from the scouts club called: Scouting Johan en Cornelis de Witt-MeDo. Keep your answers short, but accurate. In the event you are not sure about your answer, please state this clearly and ask follow up questions. Also please answer in Dutch",
-                input=[
-                    {
-                        "role": "user",
-                        "content": user_content
-                    }
-                ],
-                store=False
+                input=conversation,
+                store=False,
+                # temperature=0.0 # ToDo: Test different temperatures with QA'ers
             )
 
-            return render_template('home.html',
-                                   chat_history=[f"Bestand(en): {file_names}", message, response.output_text])
+            chat_history.append(user_content)
+            chat_history.append(response.output_text)
+
+            return render_template('home.html', chat_history=chat_history)
         except OpenAIError as e:
             print(f"OpenAI Error: {str(e)}")
             return render_template('oi.html', error=str(e))
