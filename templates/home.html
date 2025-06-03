@@ -1,20 +1,50 @@
 {#{% extends 'base.html' %}#}
 
 {% block content %}
-<div>
-    <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
     <div>
-        {% for chat_message in chat_history %}
-        <p>{{ chat_message }}</p>
-        {% endfor %}
-        <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
-            <input type="file" name="files" multiple>
-            <label>
-                <textarea name="message" placeholder="Typ bericht"></textarea>
-            </label>
-            <button>Submit</button>
-        </form>
+        <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
+        <div>
+            {% for chat_message in chat_history %}
+                <p>{{ chat_message }}</p>
+            {% endfor %}
+            {% if context_used %}
+                <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
+            {% endif %}
+            <form id="chat-form" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
+                <input type="file" name="files" multiple>
+                <label>
+                    <textarea name="message" placeholder="Typ bericht"></textarea>
+                </label>
+                <button>Submit</button>
+                <div class="loader"></div>
+            </form>
+        </div>
     </div>
-</div>
+    {# Todo: move these to separate css/js files #}
+    <style>
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-top: 16px solid #3498db;
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            animation: spin 4s linear infinite;
+            visibility: hidden;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    <script>
+        document.getElementById("chat-form").addEventListener("submit", function (e) {
+            document.querySelector(".loader").style.visibility = "visible";
+        })
+    </script>
 {% endblock %}

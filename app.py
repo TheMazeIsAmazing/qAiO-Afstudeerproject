@@ -1,10 +1,35 @@
-from flask import Flask, render_template, request
-from openai import OpenAI, OpenAIError
-import json, os, tempfile
+import json
+import os
+import tempfile
+from datetime import datetime, timezone
 
-# Initialize OpenAI client
-client = OpenAI(
-    api_key=os.getenv('OPENAI_API_KEY'),
+import chromadb
+from chromadb.utils import embedding_functions
+from flask import Flask, render_template, request
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+from openai import OpenAI, OpenAIError
+
+# Initialize the client
+ai_client = OpenAI(
+    base_url="https://api.bonzai.iodigital.com/universal",
+    api_key="XXX",
+    default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
+)
+
+db_client = chromadb.PersistentClient(
+    path="./private/chroma",
+    settings=chromadb.config.Settings(allow_reset=True)
+)
+
+collection = db_client.get_or_create_collection("test")
+
+# Defining the embedding function
+embedding_func = embedding_functions.OpenAIEmbeddingFunction(
+    api_base="https://api.bonzai.iodigital.com/universal",
+    api_key="XXX",
+    default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
+    model_name="text-embedding-3-large"
 )
 
 # Create a Flask application instance
@@ -29,7 +54,7 @@ def home():
     if request.method == 'POST':
         # Get form data
         chat_history_str = request.form.get('chat_history', '[]')
-        message = request.form.get('message')
+        user_prompt = request.form.get('message')
 
         # Parse previous messages from JSON
         try:
@@ -42,17 +67,18 @@ def home():
             chat_history = []
 
         # Prepare conversation history for the AI
-        conversation = []
+        conversation = [{
+            "role": "system",
+            "content": "You are a general purpose assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in Dutch"
+        }]
+
         for i, msg in enumerate(chat_history):
             # Alternate between user and assistant roles
             role = "user" if i % 2 == 0 else "assistant"
             conversation.append({"role": role, "content": msg})
 
         try:
-            # Upload files first
-            file_ids = []
-            file_names = []
-
+            # Upload files first to ChromaDB
             for file in request.files.getlist('files'):
                 if file.filename != '':
                     # Create a temporary directory that works on any OS
@@ -62,60 +88,68 @@ def home():
                     # Save file temporarily
                     file.save(temp_path)
 
-                    # Debug information
-                    print(f"Uploading file: {file.filename}")
+                    pdf_loader = PyPDFLoader(temp_path)
+                    text_splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=1000,
+                        chunk_overlap=50,
+                        separators=["\n\n", "\n", ". ", " ", ""],
+                    )
 
-                    # Upload using the exact same method as the documentation
-                    with open(temp_path, "rb") as f:
-                        uploaded_file = client.files.create(
-                            file=f,
-                            purpose="user_data"
-                        )
+                    documents = pdf_loader.load_and_split(text_splitter=text_splitter)
+
+                    collection.add(
+                        documents=[i.page_content for i in documents],
+                        ids=[f"pdf_chunk_{i}" for i in range(len(documents))],
+                        metadatas=
+                        [
+                            {
+                                "file_name": file.filename,
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            }
+                            for _ in documents
+                        ],
+                    )
 
                     # Clean up temp file
                     os.remove(temp_path)
 
-                    file_ids.append(uploaded_file.id)
-                    file_names.append(file.filename)
+            # After uploading to the vector DB, search for the relevant information
+            results = collection.query(
+                query_texts=[user_prompt],
+                n_results=4
+            )
 
-            # Build content for the API request exactly as in the documentation
-            user_content = []
+            context_used = []
 
-            # Add file references
-            for file_id in file_ids:
-                user_content.append({
-                    "type": "input_file",
-                    "file_id": file_id,
-                })
-
-            # Add the text message
-            user_content.append({
-                "type": "input_text",
-                "text": message,
-            })
+            for meta in results['metadatas'][0]:
+                if meta['file_name'] not in context_used:
+                    context_used.append(meta['file_name'])
 
             # Add the new user message
-            conversation.append({"role": "user", "content": user_content})
+            conversation.extend([
+                {"role": "user", "content": f"This might be useful documentation to help the user's request:{results}"},
+                {"role": "user", "content": f"This is the user's prompt:{user_prompt}"}
+            ])
 
             # Create a new response exactly as in the documentation
-            response = client.responses.create(
-                model="gpt-4.1",
-                instructions="You are a general purpose assistant designed to assist scouts leaders from the scouts club called: Scouting Johan en Cornelis de Witt-MeDo. Keep your answers short, but accurate. In the event you are not sure about your answer, please state this clearly and ask follow up questions. Also please answer in Dutch",
-                input=conversation,
-                store=False,
+            completion = ai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=conversation,
                 # temperature=0.0 # ToDo: Test different temperatures with QA'ers
             )
 
-            chat_history.append(user_content)
-            chat_history.append(response.output_text)
+            chat_message = completion.choices[0].message.content
 
-            return render_template('home.html', chat_history=chat_history)
+            chat_history.append(user_prompt)
+            chat_history.append(chat_message)
+
+            return render_template('home.html', chat_history=chat_history, context_used=context_used)
         except OpenAIError as e:
             print(f"OpenAI Error: {str(e)}")
             return render_template('oi.html', error=str(e))
     else:
         # For GET requests, start with an empty conversation
-        return render_template('home.html', chat_history=[])
+        return render_template('home.html', chat_history=[], context_used=None)
 
 
 @app.errorhandler(404)
