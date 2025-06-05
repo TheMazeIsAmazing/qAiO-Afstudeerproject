@@ -4,14 +4,34 @@
     <div>
         <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
         <div>
-            {% for chat_message in chat_history %}
-                <p>{{ chat_message }}</p>
-            {% endfor %}
-            {% if context_used %}
-                <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
-            {% endif %}
-            <form id="chat-form" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
+            <table>
+                <thead>
+                <tr>
+                    <th>Output A</th>
+                    <th>Output B</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for count in range(0, (chat_history_a|default([])|length)) %}
+                    {% if count % 2 %}
+                    <tr>
+                        <td>{{ chat_history_a[count] }}</td>
+                        <td>{{ chat_history_b[count] }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" style="text-align: center">{{ chat_history_a[count] }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+            <p style="padding-top: 20px">
+                Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context.
+            </p>
+            <form id="chat-form" method="post" enctype="multipart/form-data"  style="padding-top: 20px">
+                <input type="hidden" name="chat_history_a" value="{{ chat_history_a|tojson }}">
+                <input type="hidden" name="chat_history_b" value="{{ chat_history_b|tojson }}">
                 <input type="file" name="files" multiple>
                 <label>
                     <textarea name="message" placeholder="Typ bericht"></textarea>
@@ -31,6 +51,21 @@
             height: 100px;
             animation: spin 4s linear infinite;
             visibility: hidden;
+        }
+
+        td {
+            width: 50dvw;
+        }
+
+        tbody tr:nth-child(odd) {
+            background-color: #f3f3f3;
+            border-right: none;
+            height: 40px;
+            vertical-align: bottom;
+        }
+
+        td:nth-child(1), th:nth-child(1) {
+            border-right: 2px solid #3498db;
         }
 
         @keyframes spin {

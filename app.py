@@ -53,29 +53,50 @@ app.jinja_env.filters['tojson'] = json.dumps
 def home():
     if request.method == 'POST':
         # Get form data
-        chat_history_str = request.form.get('chat_history', '[]')
+        chat_history_str_a = request.form.get('chat_history_a', '[]')
+        chat_history_str_b = request.form.get('chat_history_b', '[]')
         user_prompt = request.form.get('message')
 
         # Parse previous messages from JSON
         try:
-            chat_history = json.loads(chat_history_str)
+            chat_history_a = json.loads(chat_history_str_a)
         except:
-            chat_history = []
+            chat_history_a = []
 
         # Ensure prev_message is a list
-        if not isinstance(chat_history, list):
-            chat_history = []
+        if not isinstance(chat_history_a, list):
+            chat_history_a = []
+
+        # Parse previous messages from JSON
+        try:
+            chat_history_b = json.loads(chat_history_str_b)
+        except:
+            chat_history_b = []
+
+        # Ensure prev_message is a list
+        if not isinstance(chat_history_b, list):
+            chat_history_b = []
 
         # Prepare conversation history for the AI
-        conversation = [{
+        conversation_a = [{
             "role": "system",
-            "content": "You are a general purpose assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in Dutch"
+            "content": "You are a general purpose and helpful assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in Dutch"
         }]
 
-        for i, msg in enumerate(chat_history):
+        conversation_b = [{
+            "role": "system",
+            "content": "You are a general purpose and helpful assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in Dutch"
+        }]
+
+        for i, msg in enumerate(chat_history_a):
             # Alternate between user and assistant roles
             role = "user" if i % 2 == 0 else "assistant"
-            conversation.append({"role": role, "content": msg})
+            conversation_a.append({"role": role, "content": msg})
+
+        for i, msg in enumerate(chat_history_b):
+            # Alternate between user and assistant roles
+            role = "user" if i % 2 == 0 else "assistant"
+            conversation_b.append({"role": role, "content": msg})
 
         try:
             # Upload files first to ChromaDB
@@ -116,7 +137,7 @@ def home():
             # After uploading to the vector DB, search for the relevant information
             results = collection.query(
                 query_texts=[user_prompt],
-                n_results=4
+                n_results=6
             )
 
             context_used = []
@@ -126,30 +147,50 @@ def home():
                     context_used.append(meta['file_name'])
 
             # Add the new user message
-            conversation.extend([
+            conversation_a.extend([
                 {"role": "user", "content": f"This might be useful documentation to help the user's request:{results}"},
                 {"role": "user", "content": f"This is the user's prompt:{user_prompt}"}
             ])
 
-            # Create a new response exactly as in the documentation
-            completion = ai_client.chat.completions.create(
+            conversation_b.extend([
+                {"role": "user", "content": f"This might be useful documentation to help the user's request:{results}"},
+                {"role": "user", "content": f"This is the user's prompt:{user_prompt}"}
+            ])
+
+            # Create a new response
+            completion_a = ai_client.chat.completions.create(
                 model="gpt-4o",
-                messages=conversation,
+                messages=conversation_a,
                 # temperature=0.0 # ToDo: Test different temperatures with QA'ers
             )
 
-            chat_message = completion.choices[0].message.content
+            chat_message_a = completion_a.choices[0].message.content
 
-            chat_history.append(user_prompt)
-            chat_history.append(chat_message)
+            chat_history_a.extend([
+                user_prompt,
+                chat_message_a
+            ])
 
-            return render_template('home.html', chat_history=chat_history, context_used=context_used)
+            completion_b = ai_client.chat.completions.create(
+                model="claude-3-7-sonnet",
+                messages=conversation_b,
+                # temperature=0.0 # ToDo: Test different temperatures with QA'ers
+            )
+
+            chat_message_b = completion_b.choices[0].message.content
+
+            chat_history_b.extend([
+                user_prompt,
+                chat_message_b
+            ])
+
+            return render_template('home.html', chat_history_a=chat_history_a, chat_history_b=chat_history_b, context_used=context_used)
         except OpenAIError as e:
             print(f"OpenAI Error: {str(e)}")
             return render_template('oi.html', error=str(e))
     else:
         # For GET requests, start with an empty conversation
-        return render_template('home.html', chat_history=[], context_used=None)
+        return render_template('home.html', chat_history_a=[], chat_history_b=[], context_used=None)
 
 
 @app.errorhandler(404)
