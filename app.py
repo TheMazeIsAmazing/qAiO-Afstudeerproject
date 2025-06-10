@@ -12,7 +12,7 @@ from openai import OpenAI, OpenAIError
 
 # Initialize the client
 ai_client = OpenAI(
-    base_url="https://api.bonzai.iodigital.com/universal",
+    base_url=os.environ.get("AIO_BASE_URL"),
     api_key="XXX",
     default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
 )
@@ -26,7 +26,7 @@ collection = db_client.get_or_create_collection("test")
 
 # Defining the embedding function
 embedding_func = embedding_functions.OpenAIEmbeddingFunction(
-    api_base="https://api.bonzai.iodigital.com/universal",
+    api_base=os.environ.get("AIO_BASE_URL"),
     api_key="XXX",
     default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
     model_name="text-embedding-3-large"
