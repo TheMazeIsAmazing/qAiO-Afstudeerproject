@@ -4,7 +4,9 @@ import tempfile
 from datetime import datetime, timezone
 
 import chromadb
+import markdown
 from flask import Flask, render_template, request
+from markupsafe import Markup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from openai import OpenAI, OpenAIError
@@ -60,7 +62,7 @@ def home():
         # Prepare conversation history for the AI
         conversation = [{
             "role": "system",
-            "content": "You are a general purpose assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in Dutch"
+            "content": "You are a general purpose assistant designed to assist Quality Assurance employees who work at iO. Keep your answers short, but accurate. In the event you are not sure about your answer, or you need additional information, please state this clearly and ask follow up questions. Also, please answer in the language the user prompts you, which is not always the same as the documentation's language. Finally, please return a response in markdown format"
         }]
 
         for i, msg in enumerate(chat_history):
@@ -141,13 +143,25 @@ def home():
             chat_history.append(user_prompt)
             chat_history.append(chat_message)
 
-            return render_template('home.html', chat_history=chat_history, context_used=context_used, model=request.form.get('model'))
+            # Convert chat history to HTML using markdown
+            chathistory_html = []
+            for i, msg in enumerate(chat_history):
+                # Convert markdown to HTML
+                html_content = markdown.markdown(msg, extensions=['tables', 'fenced_code', 'codehilite'])
+                # Mark as safe for Jinja2 to render as HTML
+                chathistory_html.append(Markup(html_content))
+
+            return render_template('home.html',
+                                 chat_history=chat_history,
+                                 chathistory_html=chathistory_html,
+                                 context_used=context_used,
+                                 model=request.form.get('model'))
         except OpenAIError as e:
             print(f"OpenAI Error: {str(e)}")
             return render_template('oi.html', error=str(e))
     else:
         # For GET requests, start with an empty conversation
-        return render_template('home.html', chat_history=[], context_used=None, model="claude-3-7-sonnet")
+        return render_template('home.html', chat_history=[], chathistory_html=[], context_used=None, model="claude-3-7-sonnet")
 
 @app.errorhandler(404)
 def page_not_found(e):

@@ -4,10 +4,14 @@
     <div>
         <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
         <a href="/">Reset chat</a>
-        <div>
-            {% for chat_message in chat_history %}
-                <p>{{ chat_message }}</p>
-            {% endfor %}
+        <div class="chat-container">
+            {% if chathistory_html %}
+                {% for html_message in chathistory_html %}
+                    <div class="chat-message {{ 'user-message' if loop.index0 % 2 == 0 else 'assistant-message' }}">
+                        {{ html_message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
             {% if context_used %}
                 <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
             {% endif %}
@@ -55,6 +59,48 @@
             100% {
                 transform: rotate(360deg);
             }
+        }
+
+        .chat-container {
+            margin: 0 auto;
+        }
+
+        .chat-message {
+            margin: 10px 0;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+
+        .chat-message pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .chat-message code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .chat-message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .chat-message table th,
+        .chat-message table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .chat-message table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
         }
     </style>
     <script>
