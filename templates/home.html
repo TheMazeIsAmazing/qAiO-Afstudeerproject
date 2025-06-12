@@ -3,6 +3,7 @@
 {% block content %}
     <div>
         <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
+        <a href="/">Reset chat</a>
         <div>
             <table>
                 <thead>
@@ -34,7 +35,7 @@
                 <input type="hidden" name="chat_history_b" value="{{ chat_history_b|tojson }}">
                 <input type="file" name="files" multiple>
                 <label>
-                    <textarea name="message" placeholder="Typ bericht"></textarea>
+                    <textarea name="message" placeholder="Typ bericht" rows="4" cols="50"></textarea>
                 </label>
                 <button>Submit</button>
                 <div class="loader"></div>

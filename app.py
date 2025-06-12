@@ -137,7 +137,7 @@ def home():
             # After uploading to the vector DB, search for the relevant information
             results = collection.query(
                 query_texts=[user_prompt],
-                n_results=6
+                n_results=18
             )
 
             context_used = []
@@ -159,9 +159,10 @@ def home():
 
             # Create a new response
             completion_a = ai_client.chat.completions.create(
-                model="gpt-4o",
+                # model="gpt-4o",
+                model="claude-3-7-sonnet",
                 messages=conversation_a,
-                # temperature=0.0 # ToDo: Test different temperatures with QA'ers
+                temperature=0
             )
 
             chat_message_a = completion_a.choices[0].message.content
@@ -172,9 +173,10 @@ def home():
             ])
 
             completion_b = ai_client.chat.completions.create(
+                # model="gpt-4o",
                 model="claude-3-7-sonnet",
                 messages=conversation_b,
-                # temperature=0.0 # ToDo: Test different temperatures with QA'ers
+                temperature=1
             )
 
             chat_message_b = completion_b.choices[0].message.content
