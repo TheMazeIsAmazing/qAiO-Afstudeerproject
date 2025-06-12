@@ -4,7 +4,6 @@ import tempfile
 from datetime import datetime, timezone
 
 import chromadb
-from chromadb.utils import embedding_functions
 from flask import Flask, render_template, request
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -23,14 +22,6 @@ db_client = chromadb.PersistentClient(
 )
 
 collection = db_client.get_or_create_collection("test")
-
-# Defining the embedding function
-embedding_func = embedding_functions.OpenAIEmbeddingFunction(
-    api_base=os.environ.get("AIO_BASE_URL"),
-    api_key="XXX",
-    default_headers={"api-key": f"{os.getenv('AIO_API_KEY')}"},
-    model_name="text-embedding-3-large"
-)
 
 # Create a Flask application instance
 app = Flask(__name__,
@@ -78,7 +69,7 @@ def home():
             conversation.append({"role": role, "content": msg})
 
         try:
-            # Upload files first to ChromaDB
+            # Upload files to ChromaDB
             for file in request.files.getlist('files'):
                 if file.filename != '':
                     # Create a temporary directory that works on any OS
@@ -116,7 +107,7 @@ def home():
             # After uploading to the vector DB, search for the relevant information
             results = collection.query(
                 query_texts=[user_prompt],
-                n_results=4
+                n_results=min(20, collection.count())
             )
 
             context_used = []
@@ -131,26 +122,32 @@ def home():
                 {"role": "user", "content": f"This is the user's prompt:{user_prompt}"}
             ])
 
-            # Create a new response exactly as in the documentation
-            completion = ai_client.chat.completions.create(
-                model="gpt-4o",
-                messages=conversation,
-                # temperature=0.0 # ToDo: Test different temperatures with QA'ers
-            )
+            # Create a new response with the user desired model
+            if request.form.get('model') == "claude-3-7-sonnet":
+                completion = ai_client.chat.completions.create(
+                    model="claude-3-7-sonnet",
+                    messages=conversation,
+                    temperature=1.0
+                )
+            else:
+                completion = ai_client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=conversation,
+                    temperature=0.0
+                )
 
             chat_message = completion.choices[0].message.content
 
             chat_history.append(user_prompt)
             chat_history.append(chat_message)
 
-            return render_template('home.html', chat_history=chat_history, context_used=context_used)
+            return render_template('home.html', chat_history=chat_history, context_used=context_used, model=request.form.get('model'))
         except OpenAIError as e:
             print(f"OpenAI Error: {str(e)}")
             return render_template('oi.html', error=str(e))
     else:
         # For GET requests, start with an empty conversation
-        return render_template('home.html', chat_history=[], context_used=None)
-
+        return render_template('home.html', chat_history=[], context_used=None, model="claude-3-7-sonnet")
 
 @app.errorhandler(404)
 def page_not_found(e):

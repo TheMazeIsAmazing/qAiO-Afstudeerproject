@@ -3,6 +3,7 @@
 {% block content %}
     <div>
         <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
+        <a href="/">Reset chat</a>
         <div>
             {% for chat_message in chat_history %}
                 <p>{{ chat_message }}</p>
@@ -10,9 +11,23 @@
             {% if context_used %}
                 <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
             {% endif %}
+            <br>
             <form id="chat-form" method="post" enctype="multipart/form-data">
                 <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
                 <input type="file" name="files" multiple>
+                <label>
+                    <p>Kies je taalmodel</p>
+                    <select name="model">
+                        <option value="claude-3-7-sonnet" {{ 'selected' if model == 'claude-3-7-sonnet' else '' }}>
+                            Claude Sonnet 3.7 (Geeft meer context)
+                        </option>
+                        <option value="gpt-4o" {{ 'selected' if model == 'gpt-4o' else '' }}>
+                            GPT-4o (Geeft kortere antwoorden)
+                        </option>
+                    </select>
+                </label>
+                <br>
+                <br>
                 <label>
                     <textarea name="message" placeholder="Typ bericht"></textarea>
                 </label>
