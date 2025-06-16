@@ -35,7 +35,7 @@ qAiO is ontwikkeld als afstudeerproject en biedt QA-professionals de mogelijkhei
 
 1. **Clone de repository**
    ```bash
-   git clone https://github.com/TheMazeIsAmazing/qAiO-Afstudeerproject.git
+   git clone git@gitlab.hosted-tools.com:campus_rotterdam/graduation_mees_2025_qaio.git
    cd qAiO-Afstudeerproject
 
 2. **Installeer dependencies**
