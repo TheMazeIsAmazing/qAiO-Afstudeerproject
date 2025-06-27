@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import chromadb
 import markdown
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 from markupsafe import Markup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -41,9 +41,13 @@ app.config['SECRET_KEY'] = 'hello this is qAiO'
 app.jinja_env.filters['tojson'] = json.dumps
 
 
-# Define the home route
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def home():
+    return redirect('/chat')
+
+# Define the chat route
+@app.route('/chat', methods=['GET', 'POST'])
+def chat():
     if request.method == 'POST':
         # Get form data
         chat_history_str = request.form.get('chat_history', '[]')

@@ -1,9 +1,11 @@
-{#{% extends 'base.html' %}#}
+{% extends 'base.html' %}
 
 {% block content %}
     <div>
-        <h1>{% block title %} Welkom bij qAiO! {% endblock %}</h1>
-        <a href="/">Reset chat</a>
+        <h1>{% block title %} Chat {% endblock %}</h1>
+        {% if chathistory_html %}
+            <a href="/">Reset chat</a>
+        {% endif %}
         <div class="chat-container">
             {% if chathistory_html %}
                 {% for html_message in chathistory_html %}
@@ -11,98 +13,42 @@
                         {{ html_message }}
                     </div>
                 {% endfor %}
+            {% else %}
+                <p>Verstuur hieronder je bericht, laten we er iets moois van maken vandaag!</p>
             {% endif %}
             {% if context_used %}
                 <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
             {% endif %}
-            <br>
-            <form id="chat-form" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
-                <input type="file" name="files" multiple>
-                <label>
-                    <p>Kies je taalmodel</p>
-                    <select name="model">
-                        <option value="claude-3-7-sonnet" {{ 'selected' if model == 'claude-3-7-sonnet' else '' }}>
-                            Claude Sonnet 3.7 (Geeft meer context)
-                        </option>
-                        <option value="gpt-4o" {{ 'selected' if model == 'gpt-4o' else '' }}>
-                            GPT-4o (Geeft kortere antwoorden)
-                        </option>
-                    </select>
-                </label>
-                <br>
-                <br>
-                <label>
-                    <textarea name="message" placeholder="Typ bericht"></textarea>
-                </label>
-                <button>Submit</button>
-                <div class="loader"></div>
-            </form>
+
+            <div class="loader"></div>
         </div>
+            <form id="chat-form" method="post" enctype="multipart/form-data">
+                <div class="chat-form-container">
+                    <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
+                    <div class="stack">
+                        <label>
+                            <select name="model">
+                                <option value="claude-3-7-sonnet" {{ 'selected' if model == 'claude-3-7-sonnet' else '' }}>
+                                    Claude Sonnet 3.7 (Geeft meer context)
+                                </option>
+                                <option value="gpt-4o" {{ 'selected' if model == 'gpt-4o' else '' }}>
+                                    GPT-4o (Geeft kortere antwoorden)
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            <textarea name="message" placeholder="Klik hier om je bericht te typen..."></textarea>
+                        </label>
+                    </div>
+                    <label>
+                        <i class="fa-solid fa-upload"></i>
+                        <input type="file" name="files" multiple>
+                    </label>
+                    <button class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </form>
     </div>
     {# Todo: move these to separate css/js files #}
-    <style>
-        .loader {
-            border: 16px solid #f3f3f3;
-            border-top: 16px solid #3498db;
-            border-radius: 50%;
-            width: 100px;
-            height: 100px;
-            animation: spin 4s linear infinite;
-            visibility: hidden;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .chat-container {
-            margin: 0 auto;
-        }
-
-        .chat-message {
-            margin: 10px 0;
-            border-radius: 8px;
-            line-height: 1.6;
-        }
-
-        .chat-message pre {
-            background-color: #f5f5f5;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-
-        .chat-message code {
-            background-color: #f5f5f5;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .chat-message table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 10px 0;
-        }
-
-        .chat-message table th,
-        .chat-message table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        .chat-message table th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-    </style>
     <script>
         document.getElementById("chat-form").addEventListener("submit", function (e) {
             document.querySelector(".loader").style.visibility = "visible";
