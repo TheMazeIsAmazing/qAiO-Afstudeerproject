@@ -20,38 +20,40 @@
                 <p>Voor je meest recente bericht, gebruikte ik de bestanden: {{ context_used }} als context</p>
             {% endif %}
 
-            <div class="loader"></div>
+            <div class="loader-container">
+                <div class="loader"></div>
+            </div>
         </div>
-            <form id="chat-form" method="post" enctype="multipart/form-data">
-                <div class="chat-form-container">
-                    <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
-                    <div class="stack">
-                        <label>
-                            <select name="model">
-                                <option value="claude-3-7-sonnet" {{ 'selected' if model == 'claude-3-7-sonnet' else '' }}>
-                                    Claude Sonnet 3.7 (Geeft meer context)
-                                </option>
-                                <option value="gpt-4o" {{ 'selected' if model == 'gpt-4o' else '' }}>
-                                    GPT-4o (Geeft kortere antwoorden)
-                                </option>
-                            </select>
-                        </label>
-                        <label>
-                            <textarea name="message" placeholder="Klik hier om je bericht te typen..."></textarea>
-                        </label>
-                    </div>
+        <form id="chat-form" method="post" enctype="multipart/form-data">
+            <div class="chat-form-container">
+                <input type="hidden" name="chat_history" value="{{ chat_history|tojson }}">
+                <div class="stack">
                     <label>
-                        <i class="fa-solid fa-upload"></i>
-                        <input type="file" name="files" multiple>
+                        <select name="model">
+                            <option value="claude-3-7-sonnet" {{ 'selected' if model == 'claude-3-7-sonnet' else '' }}>
+                                Claude Sonnet 3.7 (Geeft meer context)
+                            </option>
+                            <option value="gpt-4o" {{ 'selected' if model == 'gpt-4o' else '' }}>
+                                GPT-4o (Geeft kortere antwoorden)
+                            </option>
+                        </select>
                     </label>
-                    <button class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                    <label>
+                        <textarea name="message" placeholder="Klik hier om je bericht te typen..."></textarea>
+                    </label>
                 </div>
-            </form>
+                <label>
+                    <i class="fa-solid fa-upload"></i>
+                    <input type="file" name="files" multiple>
+                </label>
+                <button class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </form>
     </div>
     {# Todo: move these to separate css/js files #}
     <script>
         document.getElementById("chat-form").addEventListener("submit", function (e) {
-            document.querySelector(".loader").style.visibility = "visible";
+            document.querySelector(".loader-container").style.visibility = "visible";
         })
     </script>
 {% endblock %}
